@@ -1,0 +1,120 @@
+---
+title: "PA1_template.Rmd"
+author: "TataKeymi"
+date: "2023-12-10"
+output: html_document
+---
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+library(lubridate)
+```
+##Loading and preprocessing the data
+
+```{r}
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+destfile <- "./data/05_assignment1_data.zip"
+download.file(url, destfile)
+unzip("./data/05_assignment1_data.zip", list = TRUE)
+```
+
+```{r}
+activity_df <- read_csv(unzip("./data/05_assignment1_data.zip", "activity.csv", exdir = "./data"))
+```
+##What is the mean total number of steps taken per day?
+```{r}
+str(activity_df)
+```
+```{r}
+head(activity_df)
+```
+```{r}
+steps_day <- activity_df %>% 
+        group_by(date) %>% 
+        summarise(
+        steps = sum(steps)
+)
+steps_day
+```
+```{r}
+summary(steps_day$steps)
+```
+```{r}
+ggplot(steps_day, aes(x=steps)) + 
+        geom_histogram(bins = 22, color = "black", fill = "steelblue") + 
+        ggtitle("Distribution of total steps per day")
+```
+##What is the average daily activity pattern?
+```{r}
+by_interval <- activity_df %>%
+        group_by(interval) %>%
+        summarise(
+                steps = mean(steps, na.rm = TRUE)
+        )
+by_interval[which.max(by_interval$steps), ]
+```
+
+```{r}
+ggplot(by_interval, aes(x=interval, y=steps)) + 
+        geom_line(color = "steelblue") + 
+        ggtitle("Average steps per 5-minute interval") + 
+        scale_x_continuous(breaks=seq(0,2400,300))
+```
+##Imputing missing values
+```{r}
+sum(is.na(activity_df$steps))
+```
+
+```{r}
+replaced_missing <- activity_df %>%
+        group_by(interval) %>%
+        mutate_if(is.numeric,
+                 function(x) ifelse(is.na(x),
+                                    mean(x, na.rm = TRUE),
+                                    x)) 
+```
+```{r}
+steps_day_no_na <- replaced_missing %>%
+        ungroup(interval) %>%
+        group_by(date) %>%
+        summarise(
+        steps = sum(steps)
+)
+summary(steps_day_no_na$steps)
+```
+```{r}
+ggplot(steps_day_no_na, aes(x=steps)) + 
+        geom_histogram(bins = 22, color = "black", fill = "steelblue") + 
+        ggtitle("Distribution of total steps per day with imputed missing values")
+```
+##Are there differences in activity patterns between weekdays and weekends?
+```{r}
+replaced_missing_wd <- replaced_missing %>%
+        mutate(day_of_week = wday(date, week_start = 1)) %>%
+        mutate(day_of_week = ifelse(day_of_week < 6, "weekday", "weekend"))
+```
+```{r}
+by_interval_wd <- replaced_missing_wd %>%
+        group_by(interval, day_of_week) %>%
+        summarise(
+                steps = mean(steps, na.rm = TRUE)
+        )
+```
+```{r}
+ggplot(by_interval_wd, aes(x=interval, y=steps, group=day_of_week)) +
+        geom_line(color = "steelblue") + 
+        ggtitle("Average steps per 5-minute interval") + 
+        scale_x_continuous(breaks=seq(0,2400,300)) +
+        facet_grid(day_of_week ~ .)
+```
+
+
+
